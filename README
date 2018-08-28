@@ -1,0 +1,18 @@
+IMAGE INTEGRITY VERIFIER.
+*************************
+
+Installation 
+Run the bash script install. IMPORTANT: The SGX SDK utility must be installed in /opt/intel/
+
+Initialization.
+-------------------------
+IIVR supports two modes:
+
+1. Complete: The SGX enclave and Python-C-wrapper are both compiled. This requires a file with a list of images, to be kept in trusted memory, to be provided. (Every time this is compiled a enclave sealed key is provided).
+
+2.Fast: This does compile neither the SGX enclave nor the python-C-wrapper. Assuming the attester has an already sealed hash file ( This must be sealed using the same material as the enclave seal key) The IIVR runs and read the "trusted" from that list.
+
+For more information please use the option -h.
+
+
+

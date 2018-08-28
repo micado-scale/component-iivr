@@ -1,0 +1,168 @@
+#!/bin/bash
+
+
+#We declare  variables that are going to be used for the getopts
+COMPLETE_MOD=false
+FAST_MOD=false
+HELP=false
+PATH_LIST=false
+MODE=false
+DEBUG=false
+TRUSTED_HASH_LIST=IIV_app/hash_trusted_list.txt
+
+usage(){
+	echo "usage: startup <-c|-f|-h> -G -P <Untrusted hash list> -M <SGX Mode>"
+}
+
+help_menu(){
+	echo "Image Integrity Verifier"
+	usage
+	echo ""
+	echo "IIVR options:"
+	echo ""
+	echo "  -c          Complete start"
+	echo "  -f          Fast start"
+	echo "  -h          Help"
+	echo "  -P          Path to the untrusted hash list"
+	echo "  -M          SGX MODE"
+	echo "  -G          DEBUG MODE<optional> for complete start"
+	echo "      arg-----SIM: Simulation Mode; HW: Hardware Mode, this file needs to be outside the directory"
+	echo ""
+	echo  "Complete start usage:"
+	echo  "A sealing enclave key is generated, a list
+	       of hashes must be provided."
+	echo " startup -c -P /home/hashlist -M SIM"
+	echo ""
+	echo "Fast start usage"
+	echo "A sealed hash file has to be in the system, and
+	      the key to unsealed the file must be derived from
+	      the same material the enclave is sealed."
+	echo "startup -f"
+	echo ""
+	echo "--Author: Jorge Medina--"
+	echo "COLA Project 2018"
+}
+
+compile(){
+    #1. Compile SGX library.
+    mode=$1
+    cd SGX_lib/libcSGX
+    make clean
+    make SGX_MODE=$mode
+    export LD_LIBRARY_PATH=$(pwd)
+    cp
+    #2. Compile the python-CSGX_wrapper
+    cd ..
+    make clean
+    make
+    cd ..
+    cp SGX_lib/libcSGX/IIV.signed.so IIV_app/
+}
+
+#Function to check if a file exist
+file_exist(){
+	if [ ! -f "$1" ]
+		then
+	 		echo "IIVR-Error: file $1 does not exist"
+			exit 1
+	fi
+}
+
+
+#############################START OF CODE #####################################
+while getopts ":cfhGP:M:" opt; do
+   case $opt in
+     c)
+       COMPLETE_MOD=true
+       ;;
+     f)
+       FAST_MOD=true
+       ;;
+     h)
+       #echo "The option is help...."
+       HELP=true
+       ;;
+     P)
+       PATH_LIST=true
+       path_name=$OPTARG
+       ;;
+     M)
+       MODE=true
+       sgx_mode=$OPTARG
+       ;;
+
+     G)
+       DEBUG=true
+       ;;
+
+    \?)
+       echo "Usage:The option is invalid, please use -h for help!!"
+       exit 1
+       ;;
+    :)
+      echo "Invalid option: $OPTARG requires an argument"
+      exit 1
+      ;;
+    esac
+done
+
+
+#if no option are entered: the code needs to exit
+if [ $OPTIND -eq 1 ]
+then
+	usage
+	exit 1
+fi
+
+shift $(( $OPTIND -1 ))
+
+#In case arguments are passed then then the code will exit
+if [ $# -gt 1 ]
+then
+	usage
+	exit 1
+fi
+
+#We proceed to do the checking c,f,h mush be mutually exclusive
+if ([ "$COMPLETE_MOD" = true ] && [ "$FAST_MOD" = true ]) || ([ "$FAST_MOD" = true ] && [ "$HELP" = true ]) || ([ "$HELP" = true ] && [ "$COMPLETE_MODE" = true ])
+then
+	usage
+	exit 1
+fi
+
+#We handle the case help was selected
+if [ "$HELP" = true ]
+then
+	help_menu
+	exit 0
+fi
+
+####################COMPLETE INITIALIZATION MODE ########################################################
+if ([ "$COMPLETE_MOD" = true ]) && ([ "$PATH_LIST" = true ]) && ([ "$MODE" = true ])
+then
+	file_exist $path_name
+	fpath_name=$(realpath $path_name)
+
+	if ([ "$DEBUG" = true ])
+	then
+	    compile sgx_mode
+	else
+	    compile sgx_mode > /dev/null 2>&1
+	fi
+
+	cd IIV_app
+	python3 run.py $fpath_name
+
+##########################FAST INITIALIZATION MODE ###########################
+elif ([ "$FAST_MOD" = true ]) && !([ "$PATH_LIST" = true ]) &&  !([ "$MODE" = true ])
+then
+	 echo "Fast Initialization: An encrypted hash file must be provided"
+	 file_exist $TRUSTED_HASH_LIST
+     cd SGX_lib/libcSGX
+     file_exist libiiv.so
+	 export LD_LIBRARY_PATH=$(pwd) 
+	 cd ../../IIV_app
+	 python3 run.py
+else
+     usage
+fi

@@ -1,0 +1,18 @@
+#! /bin/bash
+
+## installation.
+
+sudo apt-get update
+
+sudo apt-get -y install python3-pip
+######## To install the dependencies ###########
+pip3 install -r utils/requirements.txt
+
+
+################SGX Drivers ###########################
+#cd utils/SGX
+#sudo ./sgx_linux_x64_driver_1bf50be.bin
+#sudo ./sgx_linux_x64_psw_2.1.101.42337.bin
+#sudo ./sgx_linux_x64_sdk_2.1.101.42529.bin
+
+
