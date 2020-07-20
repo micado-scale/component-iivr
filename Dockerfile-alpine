@@ -1,0 +1,25 @@
+FROM python:3.6-alpine
+
+COPY utils/requirements.txt /requirements.txt
+
+RUN apk add --no-cache --virtual .build-deps build-base \
+  && pip3 install -r /requirements.txt \
+  && rm -rf /root/.cache \
+  && rm -f /requirements.txt \
+  && apk del .build-deps
+
+COPY . /opt/iivr
+COPY SGX_lib/libcSGX/IIV.signed.so /opt/iivr/IIV_app/IIV.signed.so
+
+RUN apk add --no-cache --virtual .build-deps curl bash build-base coreutils \
+  && curl -o sgx_sdk.bin https://download.01.org/intel-sgx/linux-2.4/ubuntu18.04-server/sgx_linux_x64_sdk_2.4.100.48163.bin \
+  && chmod +x sgx_sdk.bin \
+  && ./sgx_sdk.bin --prefix /opt/intel/ \
+  && cp -ra /opt/intel/sgxsdk/lib64/* /usr/lib/ \
+  && cd /opt/iivr/SGX_lib \
+  && python3 setup.py install \
+  && apk del .build-deps
+
+ENV LD_LIBRARY_PATH /opt/iivr/SGX_lib/libcSGX
+WORKDIR /opt/iivr/IIV_app
+CMD [ "python3", "/opt/iivr/IIV_app/run.py" ]
